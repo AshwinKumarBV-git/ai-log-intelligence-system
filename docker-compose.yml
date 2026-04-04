@@ -1,0 +1,155 @@
+# ============================================================
+# AI Log Intelligence System — Docker Infrastructure
+# ============================================================
+# This file defines the core infrastructure services:
+#   1. RabbitMQ  — Message broker (decouples Producer ↔ Consumer)
+#   2. OpenSearch — Search & analytics engine (stores + queries logs)
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down            # Stop all services
+#   docker compose logs -f         # Tail logs from all services
+#   docker compose ps              # Check service status
+# ============================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────
+  # RabbitMQ — Message Broker
+  # ──────────────────────────────────────────────────────
+  # WHY: Decouples log producers from consumers. Producers
+  #      push logs to a queue; consumers pull and process
+  #      independently. This enables horizontal scaling and
+  #      fault tolerance — if the consumer crashes, messages
+  #      are buffered in the queue and not lost.
+  #
+  # PORTS:
+  #   5672  → AMQP protocol (application connections)
+  #   15672 → Management UI (browser dashboard)
+  #
+  # DASHBOARD: http://localhost:15672
+  #   Username: guest
+  #   Password: guest
+  # ──────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: aiops-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"      # AMQP — used by producer/consumer
+      - "15672:15672"    # Management UI — monitoring & debugging
+    environment:
+      # Default credentials (override in production via .env)
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      # Persist queue data across container restarts
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      # Verify the broker is actually accepting connections
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
+  # ──────────────────────────────────────────────────────
+  # OpenSearch — Search & Analytics Engine
+  # ──────────────────────────────────────────────────────
+  # WHY: Stores log data in a searchable index. Unlike a
+  #      traditional database, OpenSearch is optimized for
+  #      full-text search, aggregations, and real-time
+  #      analytics on high-volume log data.
+  #
+  # CONFIGURATION:
+  #   - Single-node mode (no cluster overhead for dev)
+  #   - Security plugin DISABLED (no SSL/auth in dev)
+  #   - JVM heap capped at 512MB (tune for production)
+  #
+  # PORT:
+  #   9200 → REST API (all CRUD + search operations)
+  #
+  # VERIFY: curl http://localhost:9200
+  # ──────────────────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.18.0
+    container_name: aiops-opensearch
+    environment:
+      # Run as single node — no need for cluster discovery in dev
+      - discovery.type=single-node
+
+      # Disable security plugin — removes SSL and auth requirements
+      # WARNING: NEVER disable security in production!
+      - plugins.security.disabled=true
+
+      # Required by OpenSearch 2.12+ — must be set even with security disabled
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=A1ops_Dev!2026
+
+      # JVM heap size — 512MB is sufficient for dev workloads
+      # Production recommendation: 50% of available RAM, max 32GB
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+
+      # Disable performance analyzer to reduce resource usage in dev
+      - "DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI=true"
+    ports:
+      - "9200:9200"      # REST API — used by storage module & API
+    volumes:
+      # Persist index data across container restarts
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      # Verify OpenSearch is responding to HTTP requests
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
+  # ──────────────────────────────────────────────────────
+  # OpenSearch Dashboards (Optional — for visual debugging)
+  # ──────────────────────────────────────────────────────
+  # WHY: Provides a Kibana-like UI to explore indexed logs,
+  #      build visualizations, and run ad-hoc queries.
+  #      Useful during development; can be removed in prod.
+  #
+  # DASHBOARD: http://localhost:5601
+  # ──────────────────────────────────────────────────────
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.18.0
+    container_name: aiops-dashboards
+    environment:
+      # Point to our OpenSearch instance
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+
+      # Disable security plugin to match OpenSearch config
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    ports:
+      - "5601:5601"      # Dashboards UI
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
+# ──────────────────────────────────────────────────────
+# Named Volumes — Persist data across container restarts
+# ──────────────────────────────────────────────────────
+volumes:
+  rabbitmq_data:
+    driver: local
+  opensearch_data:
+    driver: local
+
+# ──────────────────────────────────────────────────────
+# Custom Network — Isolates services from host network
+# ──────────────────────────────────────────────────────
+networks:
+  aiops-network:
+    driver: bridge
+    name: aiops-network
