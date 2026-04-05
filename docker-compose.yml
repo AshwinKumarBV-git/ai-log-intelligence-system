@@ -137,6 +137,71 @@ services:
     networks:
       - aiops-network
 
+  # ──────────────────────────────────────────────────────
+  # Log Producer — Generates and publishes simulated logs
+  # ──────────────────────────────────────────────────────
+  # Builds from producer/Dockerfile, connects to RabbitMQ
+  # inside the Docker network (hostname: rabbitmq, not localhost)
+  # ──────────────────────────────────────────────────────
+  producer:
+    build:
+      context: .
+      dockerfile: producer/Dockerfile
+    container_name: aiops-producer
+    environment:
+      # Override host to use Docker internal hostname
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
+  # ──────────────────────────────────────────────────────
+  # Log Consumer — Processes logs from queue, analyzes,
+  #                and stores in OpenSearch
+  # ──────────────────────────────────────────────────────
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    container_name: aiops-consumer
+    environment:
+      # Override hosts to use Docker internal hostnames
+      - RABBITMQ_HOST=rabbitmq
+      - OPENSEARCH_HOST=opensearch
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
+  # ──────────────────────────────────────────────────────
+  # FastAPI — REST API for querying logs
+  # ──────────────────────────────────────────────────────
+  # ENDPOINT: http://localhost:8000
+  # SWAGGER:  http://localhost:8000/docs
+  # ──────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: aiops-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENSEARCH_HOST=opensearch
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
 # ──────────────────────────────────────────────────────
 # Named Volumes — Persist data across container restarts
 # ──────────────────────────────────────────────────────
