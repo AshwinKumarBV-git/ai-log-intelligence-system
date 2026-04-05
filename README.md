@@ -819,13 +819,11 @@ The producer has built-in retry with exponential backoff (5 attempts). If Rabbit
 
 ---
 
-## 📄 License
 
-This project is available under the [MIT License](LICENSE).
 
 ---
 
 <p align="center">
-  Built with ❤️ for learning distributed systems, AIOps, and production engineering.
+  learning distributed systems, AIOps, and production engineering.
 </p>
 ]]>
