@@ -803,27 +803,8 @@ The producer has built-in retry with exponential backoff (5 attempts). If Rabbit
 
 ---
 
-## 📝 Resume Bullet Points
 
-> Use these to describe this project on your resume or portfolio:
-
-- **Designed and built a distributed AIOps pipeline** processing real-time application logs through RabbitMQ → OpenSearch → FastAPI, demonstrating event-driven architecture and clean separation of concerns
-
-- **Implemented a hybrid log analysis engine** with 18 rule-based pattern detectors (regex, priority-ordered) and an LLM fallback layer supporting Ollama and OpenAI-compatible APIs
-
-- **Built a full-text search API** with FastAPI, featuring dynamic query filtering, fuzzy search, and server-side aggregations across OpenSearch indices
-
-- **Containerized a 6-service distributed system** using Docker Compose with health checks, persistent volumes, isolated networking, and environment-driven configuration
-
-- **Applied production-grade reliability patterns** including exponential backoff retry, manual message acknowledgment, graceful shutdown, circuit-breaker-ready design, and comprehensive error handling
-
----
-
-
-
----
 
 <p align="center">
   learning distributed systems, AIOps, and production engineering.
 </p>
-]]>
