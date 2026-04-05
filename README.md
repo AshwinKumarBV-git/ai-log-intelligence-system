@@ -1,4 +1,4 @@
-<![CDATA[# 🧠 AI Log Intelligence System (AIOps Lite)
+# 🧠 AI Log Intelligence System (AIOps Lite)
 
 > A production-grade, distributed log intelligence pipeline that generates, streams, analyzes, stores, and queries application logs in real-time — powered by RabbitMQ, OpenSearch, FastAPI, and optionally LLMs.
 
